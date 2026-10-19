@@ -153,8 +153,10 @@ describe("GET /api/ics/[file]", () => {
     expect(response.headers.get("content-type")).toBe("text/calendar; charset=utf-8");
     expect(response.headers.get("content-disposition")).toBe('inline; filename="shift-mon-19-oct.ics"');
     const text = await response.text();
-    expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2);
-    expect(text).toContain("UID:meng-2026-10-19-travel@autocalendar");
+    expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+    expect(text).toContain("UID:meng-2026-10-19-shift@autocalendar");
+    expect(text).toContain("DTSTART;TZID=Australia/Melbourne:20261019T073000");
+    expect(text).toContain("X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M");
   });
 
   it("needs the sign-in cookie and a valid link", async () => {

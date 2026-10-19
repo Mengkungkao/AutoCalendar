@@ -22,12 +22,21 @@ Built for iPhone Safari first; works in any modern browser.
 
 ## What you get
 
-For every shift on your row, the calendar file holds two events:
+For every shift on your row, the calendar file holds **one event** with the
+travel built in:
 
-| Event | Times | Details |
-|---|---|---|
-| **Work – Banquets (W Melbourne)** | The shift, in Melbourne time with daylight saving | Location: W Melbourne (plus the address if you set one). Notes: the roster text, e.g. `Shift 0730–1700`, and any extra words in the cell such as `Purchasing` |
-| **Travel to work – W Melbourne** | 30 minutes, ending when the shift starts | Notes: `Leave by 7:00 AM. Shift starts at 7:30 AM.` Reminders 30 and 15 minutes **before travel starts**: “Start getting ready for work.” and “Leave soon.” |
+| | |
+|---|---|
+| Title | **Work – Banquets (W Melbourne)** |
+| Time | The shift (7:30 AM – 5:00 PM), in Melbourne time: AEDT in summer, AEST in winter, switched automatically |
+| Travel | iPhone Calendar's own **Travel Time** (30 minutes), shown as a strip above the shift |
+| Reminders | 30 and 15 minutes **before travel starts** (6:30 and 6:45 AM for a 7:30 AM shift): “Start getting ready for work.” and “Leave soon.” |
+| Location | W Melbourne (plus the address if you set one) |
+| Notes | The roster text, e.g. `Shift 0730–1700`, `Leave by 7:00 AM (30 min travel).`, and any extra words in the cell such as `Purchasing` |
+
+Prefer travel as its own event? Settings → **Travel in the calendar** →
+**Separate event** gives two events per shift: the shift, and “Travel to work
+– W Melbourne” from 7:00 to 7:30 AM carrying the reminders.
 
 Days marked `OFF`, blank cells and solid red cells get nothing. An end time
 above 2400 finishes the next day (`1600 - 2700` ends at 3:00 AM). The event
@@ -173,10 +182,11 @@ visit; a server-set cookie isn't affected by that rule).
 | Name to match | `Meng`: matches “Meng (PT)”, “MENG (FT)”, not “Mengyu”. Type `Meng (PT)` to match the bracket too, if two people share the name. |
 | Reading service | **Automatic** (Claude if its key is set, otherwise OpenAI; see `ROSTER_PROVIDER`). Choose **Claude** or **OpenAI** to use one; a service without a key on the server is greyed out. The preview says which service and model read the roster. |
 | Shift title | `Work – Banquets (W Melbourne)` |
-| Travel title | `Travel to work – W Melbourne` |
+| Travel event title | `Travel to work – W Melbourne` (shown when travel is a separate event) |
 | Venue | `W Melbourne` |
 | Address | empty (set it to show the venue on a map) |
-| Travel time | 30 minutes |
+| Travel time | 30 minutes: − / + in 5-minute steps, quick picks (15, 20, 30, 45, 60) or type any value from 5 to 240 |
+| Travel in the calendar | **In the shift event** (Apple travel time, one event per shift) or **Separate event** (a travel event before each shift) |
 | Reminders | 30 and 15 minutes before travel starts, each with its own message; either can be turned off |
 | Time zone | `Australia/Melbourne` |
 | Function codes in notes | off |
@@ -203,16 +213,24 @@ visit; a server-set cookie isn't affected by that rule).
 
 ## The calendar files
 
-- Times are written in UTC, converted from Melbourne time with daylight saving
-  applied, so every calendar app shows the same moments.
+- Times are written as Melbourne local times, e.g.
+  `DTSTART;TZID=Australia/Melbourne:20261019T073000`, with a `VTIMEZONE`
+  block describing AEDT and AEST and the dates the clocks change, so Calendar
+  shows them in Melbourne time rather than GMT. The one exception is a time
+  inside the repeated hour when daylight saving ends (2:00–3:00 AM on the
+  first Sunday of April): that is written in UTC, because a local 2:30 AM
+  would be ambiguous there. Change the zone in Settings → Time zone.
+- Travel (the default style) is Apple's `X-APPLE-TRAVEL-DURATION:PT30M` on the
+  shift event. The reminders are counted from the shift start so they still
+  go off before travel: `TRIGGER;RELATED=START:-PT60M` and `-PT45M` for a
+  30-minute trip. As separate events, the travel event carries `-PT30M` and
+  `-PT15M`.
 - Each event's ID is built from your name, the shift date and the event type,
-  e.g. `meng-2026-10-19-shift@autocalendar` and
-  `meng-2026-10-19-travel@autocalendar`. The same roster always gives the same
+  e.g. `meng-2026-10-19-shift@autocalendar` (and
+  `meng-2026-10-19-travel@autocalendar` for a separate travel event). The same roster always gives the same
   IDs, and each export has a higher `SEQUENCE`, so an updated roster is meant
   to replace the earlier events rather than add copies (see
   [Not verified yet](#not-verified-yet)).
-- Reminders: two `VALARM` blocks on the travel event with
-  `TRIGGER;RELATED=START:-PT30M` and `-PT15M`, `ACTION:DISPLAY`.
 - File names: `shift-mon-19-oct.ics`, and `shifts-week-of-19-oct.ics` for the
   week.
 
@@ -282,7 +300,10 @@ The synthetic test images are drawn by `scripts/make-test-rosters.py`
 
 - **Import on a real iPhone.** The files are checked by tests and by an
   independent parser, but nobody has yet tapped them on an iPhone to confirm
-  that Calendar shows both events and both reminders. Browser tests use
+  what Calendar shows. In particular, Apple travel time is an Apple-specific
+  property: if iPhone drops it when importing a file, the event still has the
+  right shift time and both reminders at the right times, just without the
+  travel strip (use **Separate event** then). Browser tests use
   Chromium's iPhone emulation, not Safari.
 - **Re-importing an updated roster.** The IDs stay the same and the sequence
   number rises, which is how calendars recognise an update. Whether iPhone

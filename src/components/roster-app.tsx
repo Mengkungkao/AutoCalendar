@@ -7,7 +7,8 @@ import { weekFileName } from "@/lib/plan";
 import { ImageError, prepareImage } from "@/lib/prepare-image";
 import type { RosterResult } from "@/lib/roster";
 import { PROVIDER_LABELS, type Provider, type ProviderChoice, type ReaderInfo, type Settings } from "@/lib/settings";
-import { formatDayLabel } from "@/lib/time";
+import { formatDayLabel, wallTimeToInstant } from "@/lib/time";
+import { zoneAbbreviation } from "@/lib/vtimezone";
 import { MAX_FILE_BYTES, formatMegabytes } from "@/lib/upload";
 import { DayCard } from "./day-card";
 import { AlertIcon, DownloadIcon, GearIcon, PhotoIcon, SpinnerIcon } from "./icons";
@@ -253,7 +254,10 @@ export function RosterApp({ initialSettings, providers, automaticProvider, uploa
       {phase.name === "done" && roster && (
         <div className="space-y-4">
           <section className="rounded-3xl bg-card p-4">
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-ink3">Week of {formatDayLabel(roster.weekStart)}</p>
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-ink3">
+              Week of {formatDayLabel(roster.weekStart)} · times in{" "}
+              {zoneAbbreviation(wallTimeToInstant(roster.weekStart, 12 * 60, settings.timeZone), settings.timeZone)}
+            </p>
             <p className="mt-0.5 text-[17px] font-semibold leading-snug">{roster.title ?? "Weekly roster"}</p>
             <p className="mt-0.5 text-[15px] text-ink2">
               Row: {roster.matchedName} · {shifts.length} {shifts.length === 1 ? "shift" : "shifts"}
@@ -328,7 +332,11 @@ export function RosterApp({ initialSettings, providers, automaticProvider, uploa
               <li>Safari shows the events: tap <span className="font-medium text-ink">Add All</span> and pick a calendar.</li>
               <li>If the file downloads instead, tap it in Downloads (or the Files app), choose Calendar, then Add All.</li>
             </ol>
-            <p className="mt-2 text-ink3">Each shift file has two events: the shift and the travel event with its reminders.</p>
+            <p className="mt-2 text-ink3">
+              {settings.travelStyle === "combined"
+                ? `Each shift is one event with ${settings.travelMinutes} minutes of travel time and its reminders. Times are in ${settings.timeZone.replace(/_/g, " ")} time.`
+                : `Each shift file has two events: the shift, and the travel event with its reminders. Times are in ${settings.timeZone.replace(/_/g, " ")} time.`}
+            </p>
           </section>
         </div>
       )}

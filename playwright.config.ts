@@ -25,6 +25,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { APP_PASSWORD: E2E_PASSWORD, ANTHROPIC_API_KEY: "" },
+    env: { APP_PASSWORD: E2E_PASSWORD, ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "" }, // no real keys: the reading call is answered in the browser
   },
 });

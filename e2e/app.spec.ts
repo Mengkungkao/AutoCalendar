@@ -53,17 +53,21 @@ test("upload, check, edit and download a week", async ({ page }, testInfo) => {
   await expect(page.getByRole("region", { name: "Sun 25 Oct" }).getByText("Red cell (day off) · no calendar file")).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-2-preview.png`, fullPage: true });
 
-  // The download link serves a calendar file with both events and both reminders.
+  await expect(page.getByText(/Week of Mon 19 Oct · times in AEDT/i)).toBeVisible();
+
+  // The download link serves one event in Melbourne time, with Apple travel time and both reminders.
   const href = await monday.getByRole("link", { name: "Download shift-mon-19-oct.ics" }).getAttribute("href");
   const file = await page.request.get(href!);
   expect(file.headers()["content-type"]).toBe("text/calendar; charset=utf-8");
   const text = await file.text();
-  expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2);
-  expect(text).toContain("TRIGGER;RELATED=START:-PT30M");
-  expect(text).toContain("TRIGGER;RELATED=START:-PT15M");
+  expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+  expect(text).toContain("DTSTART;TZID=Australia/Melbourne:20261019T073000");
+  expect(text).toContain("X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M");
+  expect(text).toContain("TRIGGER;RELATED=START:-PT60M");
+  expect(text).toContain("TRIGGER;RELATED=START:-PT45M");
 
   const week = await page.getByRole("link", { name: /Add all 5 shifts/ }).getAttribute("href");
-  expect((await (await page.request.get(week!)).text()).match(/BEGIN:VEVENT/g)).toHaveLength(10);
+  expect((await (await page.request.get(week!)).text()).match(/BEGIN:VEVENT/g)).toHaveLength(5);
 
   // Editing a shift moves its travel and reminders with it.
   await monday.getByRole("button", { name: "Edit" }).click();
@@ -93,7 +97,9 @@ test("settings change the preview and are remembered", async ({ page }, testInfo
   await expect(service.getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
   await expect(service.getByRole("radio", { name: /OpenAI/ })).toBeDisabled();
   await expect(dialog.getByText(/No API key is set on this server yet/)).toBeVisible();
-  await dialog.getByLabel("Travel time").fill("45");
+  await dialog.getByRole("button", { name: "45 min" }).click();
+  await dialog.getByRole("button", { name: "5 minutes more" }).click(); // 50
+  await dialog.getByRole("button", { name: "5 minutes less" }).click(); // 45
   await dialog.getByLabel("Address").fill("1 Example St, Melbourne VIC 3000");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
@@ -103,8 +109,16 @@ test("settings change the preview and are remembered", async ({ page }, testInfo
 
   await page.reload();
   await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByRole("dialog", { name: "Settings" }).getByLabel("Travel time")).toHaveValue("45");
+  await expect(page.getByRole("dialog", { name: "Settings" }).getByLabel("Travel time in minutes")).toHaveValue("45");
   await expect(page.getByRole("dialog", { name: "Settings" }).getByLabel("Address")).toHaveValue("1 Example St, Melbourne VIC 3000");
+  // Switching travel to its own event changes the files, not the preview times.
+  await page.getByRole("dialog", { name: "Settings" }).getByRole("radio", { name: "Separate event" }).click();
+  await expect(page.getByRole("dialog", { name: "Settings" }).getByLabel("Travel event title")).toBeVisible();
+  await page.getByRole("dialog", { name: "Settings" }).getByRole("button", { name: "Save" }).click();
+  const separate = await page.getByRole("link", { name: /Add all 5 shifts/ }).getAttribute("href");
+  expect((await (await page.request.get(separate!)).text()).match(/BEGIN:VEVENT/g)).toHaveLength(10);
+
+  await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("dialog", { name: "Settings" }).getByRole("button", { name: "Restore defaults" }).click();
   await page.getByRole("dialog", { name: "Settings" }).getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("region", { name: "Mon 19 Oct" }).getByText("7:00 – 7:30 AM")).toBeVisible();

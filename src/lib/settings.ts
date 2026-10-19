@@ -27,6 +27,10 @@ export const PROVIDER_LABELS: Record<ProviderChoice, string> = {
 /** Which service and model read a roster, as reported by the server. */
 export type ReaderInfo = { provider: Provider; model: string };
 
+/** "combined": one event per shift with Apple travel time; "separate": a shift event and a travel event. */
+export const TRAVEL_STYLES = ["combined", "separate"] as const;
+export type TravelStyle = (typeof TRAVEL_STYLES)[number];
+
 export const settingsSchema = z.object({
   name: z.string().trim().min(1, "Enter the name to look for.").max(60),
   shiftTitle: z.string().trim().min(1, "Enter a title for shifts.").max(120),
@@ -34,6 +38,7 @@ export const settingsSchema = z.object({
   venueAddress: z.string().trim().max(200),
   travelTitle: z.string().trim().min(1, "Enter a title for travel.").max(120),
   travelMinutes: z.number().int().min(5, "Travel time must be at least 5 minutes.").max(240),
+  travelStyle: z.enum(TRAVEL_STYLES),
   reminders: z.array(reminderSchema).max(3),
   timeZone: z.string().refine(isValidTimeZone, "Unknown time zone."),
   includeFunctionCodes: z.boolean(),
@@ -50,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   venueAddress: "",
   travelTitle: "Travel to work – W Melbourne",
   travelMinutes: 30,
+  travelStyle: "combined",
   reminders: [
     { minutes: 30, message: "Start getting ready for work." },
     { minutes: 15, message: "Leave soon." },

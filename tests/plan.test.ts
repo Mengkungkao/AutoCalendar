@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from "@/lib/settings";
 import { plannedWeek, previewTable } from "./helpers";
 
 const iso = (instant: number) => new Date(instant).toISOString();
+const SEPARATE = { ...DEFAULT_SETTINGS, travelStyle: "separate" as const };
 const draft = (dateISO: string, start: number, end: number, changes: Partial<ShiftDraft> = {}): ShiftDraft => ({
   dateISO,
   slot: 0,
@@ -38,38 +39,74 @@ describe("the expected result for the 19–25 Oct roster", () => {
 
   it("builds event IDs from the name, date and event type", () => {
     const [monday] = plannedWeek();
-    expect(monday.shift.uid).toBe("meng-2026-10-19-shift@autocalendar");
-    expect(monday.travel.uid).toBe("meng-2026-10-19-travel@autocalendar");
+    expect(monday.events.map((event) => event.uid)).toEqual(["meng-2026-10-19-shift@autocalendar"]);
+    const [separate] = plannedWeek(undefined, SEPARATE);
+    expect(separate.events.map((event) => event.uid)).toEqual([
+      "meng-2026-10-19-shift@autocalendar",
+      "meng-2026-10-19-travel@autocalendar",
+    ]);
   });
 
   it("gives identical IDs when the same roster is read twice", () => {
-    const first = plannedWeek().flatMap((plan) => [plan.shift.uid, plan.travel.uid]);
-    const second = plannedWeek().flatMap((plan) => [plan.shift.uid, plan.travel.uid]);
-    expect(second).toEqual(first);
-    expect(new Set(first).size).toBe(10);
+    for (const settings of [DEFAULT_SETTINGS, SEPARATE]) {
+      const first = plannedWeek(undefined, settings).flatMap((plan) => plan.events.map((event) => event.uid));
+      const second = plannedWeek(undefined, settings).flatMap((plan) => plan.events.map((event) => event.uid));
+      expect(second).toEqual(first);
+      expect(new Set(first).size).toBe(settings === SEPARATE ? 10 : 5);
+    }
   });
 
-  it("writes the travel and shift notes", () => {
+  it("combines travel into the shift event by default (Apple travel time)", () => {
     const [monday, , , , saturday] = plannedWeek();
-    expect(monday.shift.summary).toBe("Work – Banquets (W Melbourne)");
-    expect(monday.shift.location).toBe("W Melbourne");
-    expect(monday.shift.description).toBe("Shift 0730–1700");
-    expect(monday.travel.summary).toBe("Travel to work – W Melbourne");
-    expect(monday.travel.description).toBe("Leave by 7:00 AM. Shift starts at 7:30 AM.");
-    expect(saturday.shift.description).toBe("Shift 1600–2700");
-    expect(iso(saturday.shift.end)).toBe("2026-10-24T16:00:00.000Z");
+    expect(monday.events).toEqual([
+      {
+        uid: "meng-2026-10-19-shift@autocalendar",
+        start: Date.parse("2026-10-18T20:30:00Z"),
+        end: Date.parse("2026-10-19T06:00:00Z"),
+        summary: "Work – Banquets (W Melbourne)",
+        location: "W Melbourne",
+        description: "Shift 0730–1700\nLeave by 7:00 AM (30 min travel).",
+        travelMinutes: 30,
+        alarms: [
+          // Counted from the shift start, so they still go off 30 and 15 minutes before travel.
+          { minutes: 60, message: "Start getting ready for work.", at: Date.parse("2026-10-18T19:30:00Z") },
+          { minutes: 45, message: "Leave soon.", at: Date.parse("2026-10-18T19:45:00Z") },
+        ],
+      },
+    ]);
+    expect(saturday.events[0].description).toBe("Shift 1600–2700\nLeave by 3:30 PM (30 min travel).");
+    expect(iso(saturday.events[0].end)).toBe("2026-10-24T16:00:00.000Z");
+  });
+
+  it("can write travel as its own event instead", () => {
+    const [monday] = plannedWeek(undefined, SEPARATE);
+    const [shift, travel] = monday.events;
+    expect(shift).toMatchObject({ summary: "Work – Banquets (W Melbourne)", description: "Shift 0730–1700", alarms: [] });
+    expect(shift.travelMinutes).toBeUndefined();
+    expect(travel).toMatchObject({
+      summary: "Travel to work – W Melbourne",
+      description: "Leave by 7:00 AM. Shift starts at 7:30 AM.",
+      start: Date.parse("2026-10-18T20:00:00Z"),
+      end: Date.parse("2026-10-18T20:30:00Z"),
+      alarms: [
+        { minutes: 30, message: "Start getting ready for work." },
+        { minutes: 15, message: "Leave soon." },
+      ],
+    });
   });
 
   it("adds function codes to the notes only when the setting is on", () => {
-    const off = plannedWeek()[0];
-    const on = plannedWeek(undefined, { ...DEFAULT_SETTINGS, includeFunctionCodes: true })[0];
-    expect(off.shift.description).toBe("Shift 0730–1700");
-    expect(on.shift.description).toBe("Shift 0730–1700\nFunctions: 195P DDPCT");
+    const off = plannedWeek(undefined, SEPARATE)[0];
+    const on = plannedWeek(undefined, { ...SEPARATE, includeFunctionCodes: true })[0];
+    expect(off.events[0].description).toBe("Shift 0730–1700");
+    expect(on.events[0].description).toBe("Shift 0730–1700\nFunctions: 195P DDPCT");
+    const combined = plannedWeek(undefined, { ...DEFAULT_SETTINGS, includeFunctionCodes: true })[0];
+    expect(combined.events[0].description).toBe("Shift 0730–1700\nLeave by 7:00 AM (30 min travel).\nFunctions: 195P DDPCT");
   });
 });
 
 describe("settings", () => {
-  it("uses the travel time and reminders from settings", () => {
+  it("uses the travel time and reminders from settings, in both styles", () => {
     const settings = {
       ...DEFAULT_SETTINGS,
       travelMinutes: 45,
@@ -84,12 +121,16 @@ describe("settings", () => {
       { time: "5:45 AM", message: "Shower." },
       { time: "6:35 AM", message: "Keys!" },
     ]);
-    expect(plan.travel.description).toBe("Leave by 6:45 AM. Shift starts at 7:30 AM.");
+    expect(plan.events[0]).toMatchObject({ travelMinutes: 45, description: "Shift 0730–1700\nLeave by 6:45 AM (45 min travel)." });
+    expect(plan.events[0].alarms.map((alarm) => alarm.minutes)).toEqual([105, 55]);
+    const separate = planShift(draft("2026-10-19", 450, 1020), { ...settings, travelStyle: "separate" });
+    expect(separate.events[1].description).toBe("Leave by 6:45 AM. Shift starts at 7:30 AM.");
+    expect(separate.events[1].alarms.map((alarm) => alarm.minutes)).toEqual([60, 10]);
   });
 
   it("puts the address in the location when there is one", () => {
     const plan = planShift(draft("2026-10-19", 450, 1020), { ...DEFAULT_SETTINGS, venueAddress: "1 Example St, Melbourne VIC 3000" });
-    expect(plan.shift.location).toBe("W Melbourne, 1 Example St, Melbourne VIC 3000");
+    expect(plan.events[0].location).toBe("W Melbourne, 1 Example St, Melbourne VIC 3000");
   });
 
   it("slugs the name for IDs", () => {
@@ -100,7 +141,7 @@ describe("settings", () => {
 
   it("numbers a second shift on the same day", () => {
     const plan = planShift(draft("2026-10-19", 1020, 1320, { slot: 1 }), DEFAULT_SETTINGS);
-    expect(plan.shift.uid).toBe("meng-2026-10-19-2-shift@autocalendar");
+    expect(plan.events[0].uid).toBe("meng-2026-10-19-2-shift@autocalendar");
     expect(plan.fileName).toBe("shift-mon-19-oct-2.ics");
   });
 });
@@ -110,21 +151,21 @@ describe("daylight saving (Melbourne: starts 4 Oct 2026, ends 4 Apr 2027)", () =
     // Sat 3 Oct 1600 - 2700: the clocks jump at 2:00 AM, so it lasts 10 hours, not 11.
     const plan = planShift(draft("2026-10-03", 960, 1620), DEFAULT_SETTINGS);
     expect(plan.display).toMatchObject({ shift: "4:00 PM – 3:00 AM Sun", travel: "3:30 – 4:00 PM" });
-    expect((plan.shift.end - plan.shift.start) / 3_600_000).toBe(10);
-    expect(iso(plan.shift.start)).toBe("2026-10-03T06:00:00.000Z");
+    expect((plan.times.end - plan.times.start) / 3_600_000).toBe(10);
+    expect(iso(plan.times.start)).toBe("2026-10-03T06:00:00.000Z");
   });
 
   it("times travel and reminders correctly on the morning of the change", () => {
     const plan = planShift(draft("2026-10-04", 450, 1020), DEFAULT_SETTINGS);
     expect(plan.display.travel).toBe("7:00 – 7:30 AM");
     expect(plan.display.reminders.map((reminder) => reminder.time)).toEqual(["6:30 AM", "6:45 AM"]);
-    expect(iso(plan.travel.start)).toBe("2026-10-03T20:00:00.000Z");
+    expect(iso(plan.times.travelStart)).toBe("2026-10-03T20:00:00.000Z");
   });
 
   it("keeps travel at 30 real minutes when it crosses the jump", () => {
     // Shift at 3:00 AM AEDT; 30 minutes earlier the clock read 1:30 AM AEST.
     const plan = planShift(draft("2026-10-04", 180, 600), DEFAULT_SETTINGS);
-    expect(plan.travel.start - plan.shift.start).toBe(-30 * 60_000);
+    expect(plan.times.travelStart - plan.times.start).toBe(-30 * 60_000);
     expect(plan.display.travel).toBe("1:30 – 3:00 AM");
     expect(plan.display.reminders.map((reminder) => reminder.time)).toEqual(["1:00 AM", "1:15 AM"]);
   });
@@ -132,12 +173,12 @@ describe("daylight saving (Melbourne: starts 4 Oct 2026, ends 4 Apr 2027)", () =
   it("adds the repeated hour to an overnight shift when daylight saving ends", () => {
     const plan = planShift(draft("2027-04-03", 960, 1620), DEFAULT_SETTINGS);
     expect(plan.display.shift).toBe("4:00 PM – 3:00 AM Sun");
-    expect((plan.shift.end - plan.shift.start) / 3_600_000).toBe(12);
+    expect((plan.times.end - plan.times.start) / 3_600_000).toBe(12);
   });
 
   it("times reminders through the repeated hour by the real clock", () => {
     const plan = planShift(draft("2027-04-04", 180, 600), DEFAULT_SETTINGS);
-    expect(iso(plan.shift.start)).toBe("2027-04-03T17:00:00.000Z");
+    expect(iso(plan.times.start)).toBe("2027-04-03T17:00:00.000Z");
     expect(plan.display.travel).toBe("2:30 – 3:00 AM");
     expect(plan.display.reminders.map((reminder) => reminder.time)).toEqual(["2:00 AM", "2:15 AM"]);
   });

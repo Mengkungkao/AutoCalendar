@@ -62,7 +62,7 @@ const uids = (result: RosterResult) =>
   result.ok
     ? dayEntries(result)
         .flatMap((day) => day.shifts.map((shift) => planShift(toDraft(shift), DEFAULT_SETTINGS)))
-        .flatMap((plan) => [plan.shift.uid, plan.travel.uid])
+        .flatMap((plan) => plan.events.map((event) => event.uid))
     : [];
 
 const realRoster = ["fixtures/roster-19-oct.png", "fixtures/roster-19-oct.jpg", "fixtures/roster-19-oct.jpeg"].find(existsSync);
@@ -85,7 +85,7 @@ describe.skipIf(providers.length === 0).each(providers)("live: %s reads roster i
     const first = await read(provider, realRoster!);
     const second = await read(provider, realRoster!);
     expect(uids(second.result)).toEqual(uids(first.result));
-    expect(uids(first.result)).toHaveLength(10);
+    expect(uids(first.result)).toHaveLength(5); // one event per shift (travel combined)
   });
 
   it("synthetic screenshot gives the expected table (OFF, red cell, 2700)", async () => {

@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS,
   PROVIDER_CHOICES,
   PROVIDER_LABELS,
+  TRAVEL_STYLES,
   settingsSchema,
   type Provider,
   type Settings,
@@ -24,6 +25,7 @@ type Form = {
   venueName: string;
   venueAddress: string;
   travelTitle: string;
+  travelStyle: Settings["travelStyle"];
   travelMinutes: string;
   reminders: { enabled: boolean; minutes: string; message: string }[];
   timeZone: string;
@@ -84,6 +86,60 @@ function StackedField({ label, children }: { label: string; children: React.Reac
 }
 
 const inputClass = "h-11 min-w-0 flex-1 bg-transparent text-right text-ink outline-none placeholder:text-ink3";
+
+const TRAVEL_PRESETS = [15, 20, 30, 45, 60];
+const TRAVEL_STYLE_LABELS: Record<Settings["travelStyle"], string> = {
+  combined: "In the shift event",
+  separate: "Separate event",
+};
+
+/** Travel minutes: − / + in steps of 5, presets, and typing for anything else. */
+function TravelTime({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const minutes = Number(value);
+  const step = (delta: number) =>
+    onChange(String(Math.min(240, Math.max(5, (Number.isFinite(minutes) ? Math.round(minutes / 5) * 5 : 30) + delta))));
+  const round = "flex size-11 shrink-0 items-center justify-center rounded-full bg-fill text-[22px] font-medium text-accent disabled:opacity-40";
+  return (
+    <div className="px-4 py-2.5">
+      <div className="flex items-center gap-3">
+        <span className="flex-1 text-[15px]">Travel time</span>
+        <button type="button" onClick={() => step(-5)} disabled={minutes <= 5} aria-label="5 minutes less" className={round}>
+          −
+        </button>
+        <label className="flex items-baseline gap-1">
+          <input
+            className="h-11 w-12 bg-transparent text-center text-[20px] font-semibold text-ink outline-none"
+            type="number"
+            inputMode="numeric"
+            min={5}
+            max={240}
+            step={5}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            aria-label="Travel time in minutes"
+          />
+          <span className="text-[15px] text-ink2">min</span>
+        </label>
+        <button type="button" onClick={() => step(5)} disabled={minutes >= 240} aria-label="5 minutes more" className={round}>
+          +
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {TRAVEL_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => onChange(String(preset))}
+            aria-pressed={minutes === preset}
+            className={`h-9 rounded-full px-3.5 text-[15px] font-medium ${minutes === preset ? "bg-accent text-white" : "bg-fill text-ink"}`}
+          >
+            {preset} min
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 const stackedInputClass = "h-10 w-full bg-transparent text-ink outline-none placeholder:text-ink3";
 
 function providerFooter(providers: Record<Provider, boolean>, automatic: Provider | null): string {
@@ -225,9 +281,6 @@ export function SettingsSheet({ settings, providers, automaticProvider, onClose,
             <StackedField label="Shift title">
               <input className={stackedInputClass} value={form.shiftTitle} onChange={(e) => set("shiftTitle", e.target.value)} />
             </StackedField>
-            <StackedField label="Travel title">
-              <input className={stackedInputClass} value={form.travelTitle} onChange={(e) => set("travelTitle", e.target.value)} />
-            </StackedField>
             <StackedField label="Venue">
               <input className={stackedInputClass} value={form.venueName} onChange={(e) => set("venueName", e.target.value)} />
             </StackedField>
@@ -242,20 +295,39 @@ export function SettingsSheet({ settings, providers, automaticProvider, onClose,
             </StackedField>
           </Group>
 
-          <Group title="Travel and reminders" footer="Reminders go on the travel event and count back from when travel starts, not from the shift.">
-            <Field label="Travel time">
-              <input
-                className={inputClass}
-                type="number"
-                inputMode="numeric"
-                min={5}
-                max={240}
-                step={5}
-                value={form.travelMinutes}
-                onChange={(e) => set("travelMinutes", e.target.value)}
-              />
-              <span className="text-[15px] text-ink2">min</span>
-            </Field>
+          <Group
+            title="Travel and reminders"
+            footer={
+              form.travelStyle === "combined"
+                ? "Travel is the shift event's Travel Time in iPhone Calendar (shown above the shift). Reminders count back from when travel starts."
+                : "Travel is its own event that ends when the shift starts, and carries the reminders. Reminders count back from when travel starts."
+            }
+          >
+            <TravelTime value={form.travelMinutes} onChange={(value) => set("travelMinutes", value)} />
+            <div>
+              <p className="px-4 pt-2.5 text-[13px] text-ink2">Travel in the calendar</p>
+              <div role="radiogroup" aria-label="Travel in the calendar" className="grid grid-cols-2 gap-1 p-1.5">
+                {TRAVEL_STYLES.map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    role="radio"
+                    aria-checked={form.travelStyle === style}
+                    onClick={() => set("travelStyle", style)}
+                    className={`min-h-11 rounded-lg px-2 text-[15px] font-medium ${
+                      form.travelStyle === style ? "bg-accent text-white" : "bg-fill text-ink"
+                    }`}
+                  >
+                    {TRAVEL_STYLE_LABELS[style]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.travelStyle === "separate" && (
+              <StackedField label="Travel event title">
+                <input className={stackedInputClass} value={form.travelTitle} onChange={(e) => set("travelTitle", e.target.value)} />
+              </StackedField>
+            )}
             {form.reminders.map((reminder, index) => (
               <div key={index} className="space-y-0 px-4 py-2">
                 <label className="flex min-h-11 items-center gap-3">
@@ -277,7 +349,7 @@ export function SettingsSheet({ settings, providers, automaticProvider, onClose,
                     onChange={(e) => setReminder(index, { minutes: e.target.value })}
                     aria-label={`Reminder ${index + 1} minutes before travel`}
                   />
-                  <span className="text-[15px] text-ink2">min before</span>
+                  <span className="text-[15px] text-ink2">min before travel</span>
                 </label>
                 <input
                   className="h-11 w-full rounded-lg bg-fill px-3 text-ink outline-none disabled:text-ink3"
