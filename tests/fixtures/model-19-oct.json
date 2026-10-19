@@ -1,0 +1,36 @@
+{
+  "is_roster": true,
+  "roster_title": "BANQUETS TEAM ROSTER 19/10 TO 25/10",
+  "columns": [
+    { "day": "MON", "date_text": "19-Oct-26" },
+    { "day": "TUE", "date_text": "20-Oct-26" },
+    { "day": "WED", "date_text": "21-Oct-26" },
+    { "day": "THU", "date_text": "22-Oct-26" },
+    { "day": "FRI", "date_text": "23-Oct-26" },
+    { "day": "SAT", "date_text": "24-Oct-26" },
+    { "day": "SUN", "date_text": "25-Oct-26" }
+  ],
+  "function_codes": [
+    { "day": "MON", "text": "195P DDPCT" },
+    { "day": "SAT", "text": "220P WEDDING" }
+  ],
+  "staff_names": ["Alex (FT)", "Priya (FT)", "Meng (PT)", "Mengyu (PT)", "Tom (PT)"],
+  "target_rows": [
+    {
+      "name_text": "Meng (PT)",
+      "row_fully_visible": true,
+      "cells": [
+        { "day": "MON", "text": "0730 - 1700", "fill": "none", "confidence": "high", "doubt": null },
+        { "day": "TUE", "text": "0630 - 1600", "fill": "none", "confidence": "high", "doubt": null },
+        { "day": "WED", "text": "0615 - 1600", "fill": "none", "confidence": "high", "doubt": null },
+        { "day": "THU", "text": "0800 - 1800", "fill": "none", "confidence": "high", "doubt": null },
+        { "day": "FRI", "text": "OFF", "fill": "none", "confidence": "high", "doubt": null },
+        { "day": "SAT", "text": "1600 - 2700", "fill": "none", "confidence": "high", "doubt": null },
+        { "day": "SUN", "text": "", "fill": "red", "confidence": "high", "doubt": null }
+      ]
+    }
+  ],
+  "table_cut_off": false,
+  "hard_to_read": false,
+  "image_notes": null
+}

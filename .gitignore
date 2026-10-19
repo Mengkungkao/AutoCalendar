@@ -1,0 +1,20 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# secrets
+.env
+.env*.local
+
+# test output
+test-results/
+playwright-report/
+tests/live/output/
+
+# your own roster images stay on your machine
+fixtures/*
+!fixtures/README.md
+
+.vercel

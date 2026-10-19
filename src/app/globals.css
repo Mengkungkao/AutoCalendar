@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/*
+ * iOS system colours: grouped grey background with card surfaces, system
+ * blue for actions, and the platform font so the site reads as native on
+ * iPhone. Dark mode follows the phone's setting.
+ */
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink2);
+  --color-ink3: var(--ink3);
+  --color-line: var(--line);
+  --color-fill: var(--fill);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+}
+
+:root {
+  color-scheme: light dark;
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --raised: #ffffff;
+  --ink: #000000;
+  --ink2: #3c3c43cc;
+  --ink3: #3c3c4399;
+  --line: #3c3c434a;
+  --fill: #7676801f;
+  --accent: #007aff;
+  --accent-soft: #007aff1a;
+  --danger: #d70015;
+  --danger-soft: #ff3b301a;
+  --warn: #b25000;
+  --warn-soft: #ff95001f;
+  --ok: #248a3d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --raised: #2c2c2e;
+    --ink: #ffffff;
+    --ink2: #ebebf5cc;
+    --ink3: #ebebf599;
+    --line: #54545899;
+    --fill: #7676803d;
+    --accent: #0a84ff;
+    --accent-soft: #0a84ff29;
+    --danger: #ff6961;
+    --danger-soft: #ff453a29;
+    --warn: #ffb340;
+    --warn-soft: #ff9f0a29;
+    --ok: #30d158;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* 16px stops iPhone Safari zooming into a field when it gets focus. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+input[type="time"] {
+  min-height: 44px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+@keyframes ac-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ac-spinner {
+  animation: ac-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ac-spinner {
+    animation-duration: 2.5s;
+  }
+}
