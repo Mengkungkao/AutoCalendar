@@ -306,3 +306,4 @@ tests/                    unit and integration tests; tests/live/ calls the real
 e2e/                      Playwright browser tests
 ```
 # AutoCarlendar
+# AutoCalendar
